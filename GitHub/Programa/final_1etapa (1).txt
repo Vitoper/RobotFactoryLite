@@ -1,0 +1,800 @@
+//voltagem a 8.13
+#define INICIAL 0
+#define SEGUIR_LINHA 1
+#define SEGUIR_LINHA_CAIXA 50
+#define VERIFICA 2
+#define VERIFICA_CAIXA 60
+#define PARA 15
+#define ENT_E 20
+#define ENT 30
+
+// Definir as constantes dos pinos dos sensores
+const int s1 = 6;
+const int s2 = 5;
+const int s3 = 4;
+const int s4 = 3;
+const int s5 = 2;
+
+// Definir as constantes dos pinos dos motores
+const int MDF = 13;
+const int MDT = 12;
+const int MEF = 11;
+const int MET = 10;
+
+const int interruptor = 23;
+const int bobina = 22;
+
+//velocidades
+int vel_D=9;
+int vel_E=8;
+
+//Constantes com o valor de entrada
+int valor_s1;
+int valor_s2;
+int valor_s3;
+int valor_s4;
+int valor_s5;
+
+//variável estado
+int estado;
+
+//para contar o numero de cruzamentos
+int n_ent=0;
+
+int aux;
+
+
+void setup() {
+  // put your setup code here, to run once:
+  Serial.begin(9600);
+
+  //Configurar os pins de entrada
+  pinMode(s1,INPUT);
+  pinMode(s2,INPUT);
+  pinMode(s3,INPUT);
+  pinMode(s4,INPUT);
+  pinMode(s5,INPUT);
+
+  //Configurar os pins de saída
+  pinMode(MEF,OUTPUT);
+  pinMode(MET,OUTPUT);
+  pinMode(MDF,OUTPUT);
+  pinMode(MDT,OUTPUT);
+
+  pinMode(interruptor,INPUT);
+  pinMode(bobina,OUTPUT); 
+  
+  estado=INICIAL;
+  
+}
+
+void loop() {
+  //definir o valor como digital Read
+  valor_s1=digitalRead(s1);
+  valor_s2=digitalRead(s2);
+  valor_s3=digitalRead(s3);
+  valor_s4=digitalRead(s4);
+  valor_s5=digitalRead(s5);
+
+
+  switch (estado){
+    case INICIAL:
+      delay(500);
+      //digitalWrite(bobina,HIGH);
+      estado=SEGUIR_LINHA;
+      break;
+
+    case VERIFICA:
+      //serve para ajustar depois de cada curva sem caixa
+      analogWrite(vel_D,60);
+      analogWrite(vel_E,60);
+      if(digitalRead(s4)==0){
+        digitalWrite(MEF,1);
+        digitalWrite(MDF,0);
+      }else{
+        if(digitalRead(s2)==0){
+          digitalWrite(MEF,0);
+          digitalWrite(MDF,1);
+        }else{
+          digitalWrite(MEF,1);
+          digitalWrite(MDF,1);
+          delay(80);
+          if(digitalRead(s2)==1 && digitalRead(s4)==1){
+            estado=SEGUIR_LINHA;
+          }
+        }
+      }
+      break;
+
+    case VERIFICA_CAIXA:
+      //serve para ajustar depois de cada curva sem caixa
+      analogWrite(vel_D,80);
+      analogWrite(vel_E,80);
+      if(digitalRead(s4)==0){
+        digitalWrite(MEF,1);
+        digitalWrite(MDF,0);
+      }else{
+        if(digitalRead(s2)==0){
+          digitalWrite(MEF,0);
+          digitalWrite(MDF,1);
+        }else{
+          digitalWrite(MEF,1);
+          digitalWrite(MDF,1);
+          delay(80);
+          if(digitalRead(s2)==1 && digitalRead(s4)==1){
+            estado=SEGUIR_LINHA_CAIXA;
+          }
+        }
+      }
+      break;
+    
+
+    case SEGUIR_LINHA:
+      //verifica se está num entroncamento
+      if(valor_s1 != valor_s5){
+        n_ent=n_ent+1;
+        estado=ENT;
+      }else{
+        //veriica se está com a caixa porque as potencias têm de ser outras
+        if(valor_s4==1){
+          analogWrite(vel_E,0.18*255);
+          digitalWrite(MEF,HIGH);
+        }
+        if(valor_s4==0){
+          analogWrite(vel_E,0.24*255);
+          digitalWrite(MEF,HIGH);
+        }
+        if(valor_s2==1){
+          analogWrite(vel_D,0.18*255);
+          digitalWrite(MDF,HIGH);
+        }
+        if(valor_s2==0){
+          analogWrite(vel_D,0.24*255);
+          digitalWrite(MDF,HIGH);
+        }
+      }
+      break;
+
+    case SEGUIR_LINHA_CAIXA:
+      //verifica se está num entroncamento
+      if(valor_s1 != valor_s5){
+        n_ent=n_ent+1;
+        estado=ENT;
+      }else{
+        //veriica se está com a caixa porque as potencias têm de ser outras
+        if(valor_s4==1){
+          analogWrite(vel_E,0.195*255);
+          digitalWrite(MEF,HIGH);
+        }
+        if(valor_s4==0){
+          analogWrite(vel_E,0.295*255);
+          digitalWrite(MEF,HIGH);
+        }
+        if(valor_s2==1){
+          analogWrite(vel_D,0.195*255);
+          digitalWrite(MDF,HIGH);
+        }
+        if(valor_s2==0){
+          analogWrite(vel_D,0.295*255);
+          digitalWrite(MDF,HIGH);
+        }
+      }
+      break;
+
+
+    case ENT:
+    
+      if(n_ent==1 || n_ent==2 || n_ent==14 || n_ent==15 || n_ent==16 || n_ent==18 || n_ent==19 || n_ent==30 || n_ent==32 || n_ent==33 || n_ent==34 || n_ent==36 || n_ent==47 || n_ent==48 || n_ent==50 || n_ent==51 || n_ent==52){
+        //vai em frente até voltar a encontrar a linha
+        digitalWrite(MEF,1);
+        digitalWrite(MET,0);
+        digitalWrite(MDF,1);
+        digitalWrite(MDT,0);
+        analogWrite(vel_D,50);
+        analogWrite(vel_E,50);
+        estado=ENT; 
+        //se encontrar a linha
+        if(valor_s1==1 && valor_s3==0 && valor_s5==1){
+          estado=SEGUIR_LINHA;
+        }
+      }
+      
+      if(n_ent==3){
+        //tem de ir pegar na caixa
+        //passa o entroncamento até encontrar a linha
+        digitalWrite(MEF,1);
+        digitalWrite(MET,0);
+        digitalWrite(MDF,1);
+        digitalWrite(MDT,0);
+        analogWrite(vel_D,70);
+        analogWrite(vel_E,70);
+        estado=ENT; 
+        //se encontrar a linha
+        if(valor_s1==1 && valor_s3==0 && valor_s5==1){
+          //segue a linha até o sinal_int==1
+          while(digitalRead(interruptor)==0){
+            //segue a linha (copiar a parte do código de seguir a linha)
+            if(digitalRead(s1)==1 && digitalRead(s3)==0 && digitalRead(s5)==1){
+              if(digitalRead(s4)==1){
+                analogWrite(vel_E,0.18*255);
+                digitalWrite(MEF,HIGH);
+              }
+              if(digitalRead(s4)==0){
+                analogWrite(vel_E,0.24*255);
+                digitalWrite(MEF,HIGH);
+              }
+              if(digitalRead(s2)==1){
+                analogWrite(vel_D,0.18*255);
+                digitalWrite(MDF,HIGH);
+              }
+              if(digitalRead(s2)==0){
+                analogWrite(vel_D,0.24*255);
+                digitalWrite(MDF,HIGH);
+              }
+              
+            }
+          }
+         
+          //interruptor ja está ligado, então liga a bobina
+          digitalWrite(bobina,HIGH);
+          
+          delay(1000);
+          
+          while(digitalRead(s3)==0 && digitalRead(s5)==1){
+            //anda para tráz até encontrar a linha 
+            digitalWrite(MEF,0);
+            digitalWrite(MET,1);
+            digitalWrite(MDF,0);
+            digitalWrite(MDT,1);
+            analogWrite(vel_D,70);
+            analogWrite(vel_E,70);
+          }
+
+          digitalWrite(MEF,1);
+          digitalWrite(MET,1);
+          digitalWrite(MDF,1);
+          digitalWrite(MDT,1);
+          analogWrite(vel_D,255);
+          analogWrite(vel_E,255);
+
+          delay(500);
+        
+          digitalWrite(MEF,1);
+          digitalWrite(MET,0);
+          digitalWrite(MDF,1);
+          digitalWrite(MDT,0);
+          analogWrite(vel_D,80);
+          analogWrite(vel_E,80);
+          delay(350);
+          //roda até ver branco 
+          while(digitalRead(s3)==0){
+            digitalWrite(MEF,1);
+            digitalWrite(MET,0);
+            digitalWrite(MDF,0);
+            digitalWrite(MDT,1);
+            analogWrite(vel_D,70);
+            analogWrite(vel_E,80);//VELOCIDADE INICIAL-70 ; velocidade teste 1-80
+          }
+          while(digitalRead(s3)==1){
+            digitalWrite(MEF,1);
+            digitalWrite(MET,0);
+            digitalWrite(MDF,0);
+            digitalWrite(MDT,1);
+            analogWrite(vel_D,75);
+            analogWrite(vel_E,80);//aqui tambem
+          }/*
+          while(digitalRead(s4)==0){
+            digitalWrite(MEF,1);
+            digitalWrite(MET,0);
+            digitalWrite(MDF,0);
+            digitalWrite(MDT,1);
+            analogWrite(vel_D,70);
+            analogWrite(vel_E,70);//aqui tambem
+          }*/
+          delay(10);
+          digitalWrite(MEF,0);
+          digitalWrite(MET,0);
+          digitalWrite(MDF,0);
+          digitalWrite(MDT,0);
+          analogWrite(vel_D,255);
+          analogWrite(vel_E,255);
+          delay(300);
+          estado=SEGUIR_LINHA_CAIXA; 
+      
+        }
+      }
+      if(n_ent==4 || n_ent==5 || n_ent==6 || n_ent==8 || n_ent==9 || n_ent==10 || n_ent==21 || n_ent==22 || n_ent==24 || n_ent==25 || n_ent==26 || n_ent==28 || n_ent==38 || n_ent==40 || n_ent==41 || n_ent==42 || n_ent==44 || n_ent==45 || n_ent==56 || n_ent==57 || n_ent==58 || n_ent==60 || n_ent==61 || n_ent==62){
+        //vai em frente até voltar a encontrar a linha
+        digitalWrite(MEF,1);
+        digitalWrite(MET,0);
+        digitalWrite(MDF,1);
+        digitalWrite(MDT,0);
+        analogWrite(vel_D,60);
+        analogWrite(vel_E,60);
+        estado=ENT; 
+        //se encontrar a linha
+        if(valor_s1==1 && valor_s3==0 && valor_s5==1){
+          estado=SEGUIR_LINHA_CAIXA;
+        }
+      }
+        
+      if(n_ent==7 || n_ent==23 || n_ent==39 || n_ent==55){
+        digitalWrite(MEF,0);
+        digitalWrite(MET,0);
+        digitalWrite(MDF,0);
+        digitalWrite(MDT,0);
+        analogWrite(vel_D,255);
+        analogWrite(vel_E,255);
+        delay(300);
+        //vai em frente até passar o entroncamento 
+        while(digitalRead(s5)==0){
+          digitalWrite(MEF,1);
+          digitalWrite(MET,0);
+          digitalWrite(MDF,1);
+          digitalWrite(MDT,0);
+          analogWrite(vel_D,80);
+          analogWrite(vel_E,80);
+        }
+        delay(50);
+        //roda até ver branco 
+        while(digitalRead(s5)==1){
+          digitalWrite(MEF,1);
+          digitalWrite(MET,0);
+          digitalWrite(MDF,0);
+          digitalWrite(MDT,1);
+          analogWrite(vel_D,80);
+          analogWrite(vel_E,80);
+        }
+        while(digitalRead(s5)==0){
+          digitalWrite(MEF,1);
+          digitalWrite(MET,0);
+          digitalWrite(MDF,0);
+          digitalWrite(MDT,1);
+          analogWrite(vel_D,80);
+          analogWrite(vel_E,80);
+        }
+        delay(20);
+        digitalWrite(MEF,0);
+        digitalWrite(MET,0);
+        digitalWrite(MDF,0);
+        digitalWrite(MDT,0);
+        analogWrite(vel_D,80);
+        analogWrite(vel_E,80);
+        delay(300);
+        estado=VERIFICA_CAIXA; 
+      }
+      if(n_ent==11 || n_ent==27 || n_ent==43 || n_ent==59){
+        //tem de virar é esquerda
+        digitalWrite(MEF,1);
+        digitalWrite(MET,1);
+        digitalWrite(MDF,1);
+        digitalWrite(MDT,1);
+        analogWrite(vel_D,255);
+        analogWrite(vel_E,255);
+        delay(300);
+        while(digitalRead(s3)==0){
+          digitalWrite(MEF,1);
+          digitalWrite(MET,0);
+          digitalWrite(MDF,1);
+          digitalWrite(MDT,0);
+          analogWrite(vel_D,75);
+          analogWrite(vel_E,75);
+        }
+        delay(120);
+        while(digitalRead(s1)==1){
+          digitalWrite(MEF,0);
+          digitalWrite(MET,1);
+          digitalWrite(MDF,1);
+          digitalWrite(MDT,0);
+          analogWrite(vel_D,75);
+          analogWrite(vel_E,75);
+        }
+        while(digitalRead(s1)==0){
+          digitalWrite(MEF,0);
+          digitalWrite(MET,1);
+          digitalWrite(MDF,1);
+          digitalWrite(MDT,0);
+          analogWrite(vel_D,75);
+          analogWrite(vel_E,75);
+        }
+        delay(20);
+        digitalWrite(MEF,0);
+        digitalWrite(MET,0);
+        digitalWrite(MDF,0);
+        digitalWrite(MDT,0);
+        analogWrite(vel_D,80);
+        analogWrite(vel_E,80);
+        delay(300);
+        estado=SEGUIR_LINHA_CAIXA;
+      }
+      if(n_ent==12 || n_ent==29 || n_ent==46 || n_ent==63){
+        digitalWrite(MEF,0);
+        digitalWrite(MET,0);
+        digitalWrite(MDF,0);
+        digitalWrite(MDT,0);
+        analogWrite(vel_D,80);
+        analogWrite(vel_E,80);
+        delay(200);
+        while(digitalRead(s5)==0){
+          digitalWrite(MEF,1);
+          digitalWrite(MET,0);
+          digitalWrite(MDF,1);
+          digitalWrite(MDT,0);
+          analogWrite(vel_D,75);
+          analogWrite(vel_E,75);
+        }
+        delay(15);
+        while(digitalRead(s5)==1){
+          digitalWrite(MEF,1);
+          digitalWrite(MET,0);
+          digitalWrite(MDF,0);
+          digitalWrite(MDT,1);
+          analogWrite(vel_D,85);
+          analogWrite(vel_E,80);
+        }
+        while(digitalRead(s5)==0){
+          digitalWrite(MEF,1);
+          digitalWrite(MET,0);
+          digitalWrite(MDF,0);
+          digitalWrite(MDT,1);
+          analogWrite(vel_D,90);
+          analogWrite(vel_E,75);
+        }
+        while(digitalRead(s4)==0){
+          digitalWrite(MEF,1);
+          digitalWrite(MET,0);
+          digitalWrite(MDF,0);
+          digitalWrite(MDT,1);
+          analogWrite(vel_D,90);
+          analogWrite(vel_E,75);
+        }
+        delay(100);       
+        digitalWrite(MEF,0);
+        digitalWrite(MET,0);
+        digitalWrite(MDF,0);
+        digitalWrite(MDT,0);
+        analogWrite(vel_D,80);
+        analogWrite(vel_E,80);
+        delay(300);
+        //já esta na linha, falta entregar 
+        digitalWrite(MEF,1);
+        digitalWrite(MET,0);
+        digitalWrite(MDF,1);
+        digitalWrite(MDT,0);
+        analogWrite(vel_D,80);
+        analogWrite(vel_E,85);
+        delay(1500);
+        digitalWrite(MEF,0);
+        digitalWrite(MET,0);
+        digitalWrite(MDF,0);
+        digitalWrite(MDT,0);
+        analogWrite(vel_D,80);
+        analogWrite(vel_E,80);
+        //desliga a bobina
+        digitalWrite(bobina,LOW);
+        delay(1000);
+        
+        while(digitalRead(s5)==1){
+            //anda para tráz até encontrar a linha 
+            digitalWrite(MEF,0);
+            digitalWrite(MET,1);
+            digitalWrite(MDF,0);
+            digitalWrite(MDT,1);
+            analogWrite(vel_D,58);
+            analogWrite(vel_E,55);
+          }
+
+          digitalWrite(MEF,1);
+          digitalWrite(MET,1);
+          digitalWrite(MDF,1);
+          digitalWrite(MDT,1);
+          analogWrite(vel_D,70);
+          analogWrite(vel_E,70);
+
+          delay(300);
+        
+          digitalWrite(MEF,1);
+          digitalWrite(MET,0);
+          digitalWrite(MDF,1);
+          digitalWrite(MDT,0);
+          analogWrite(vel_D,60);
+          analogWrite(vel_E,60);
+          delay(300);
+          //roda até ver branco 
+          while(digitalRead(s3)==0){
+            digitalWrite(MEF,1);
+            digitalWrite(MET,0);
+            digitalWrite(MDF,0);
+            digitalWrite(MDT,1);
+            analogWrite(vel_D,55);
+            analogWrite(vel_E,65);//VELOCIDADE INICIAL-70 ; velocidade teste 1-80
+          }
+          while(digitalRead(s3)==1){
+            digitalWrite(MEF,1);
+            digitalWrite(MET,0);
+            digitalWrite(MDF,0);
+            digitalWrite(MDT,1);
+            analogWrite(vel_D,55);
+            analogWrite(vel_E,65);//aqui tambem
+          }
+          while(digitalRead(s4)==0){
+            digitalWrite(MEF,1);
+            digitalWrite(MET,0);
+            digitalWrite(MDF,0);
+            digitalWrite(MDT,1);
+            analogWrite(vel_D,55);
+            analogWrite(vel_E,65);//aqui tambem
+          }
+          //delay(130);
+          digitalWrite(MEF,0);
+          digitalWrite(MET,0);
+          digitalWrite(MDF,0);
+          digitalWrite(MDT,0);
+          analogWrite(vel_D,70);
+          analogWrite(vel_E,70);
+          delay(300);
+          estado=SEGUIR_LINHA; 
+      }
+      //igual ao 7 mas sem caixa
+      if(n_ent==13 || n_ent==31 || n_ent==49){
+        digitalWrite(MEF,1);
+        digitalWrite(MET,1);
+        digitalWrite(MDF,1);
+        digitalWrite(MDT,1);
+        analogWrite(vel_D,255);
+        analogWrite(vel_E,255);
+        delay(300);
+        while(digitalRead(s5)==0){
+          digitalWrite(MEF,1);
+          digitalWrite(MET,0);
+          digitalWrite(MDF,1);
+          digitalWrite(MDT,0);
+          analogWrite(vel_D,60);
+          analogWrite(vel_E,60);
+        }
+        delay(200);
+        //roda até ver branco 
+        while(digitalRead(s3)==0){
+          digitalWrite(MEF,1);
+          digitalWrite(MET,0);
+          digitalWrite(MDF,0);
+          digitalWrite(MDT,1);
+          analogWrite(vel_D,60);
+          analogWrite(vel_E,60);
+        }
+        while(digitalRead(s5)==1){
+          digitalWrite(MEF,1);
+          digitalWrite(MET,0);
+          digitalWrite(MDF,0);
+          digitalWrite(MDT,1);
+          analogWrite(vel_D,60);
+          analogWrite(vel_E,60);
+        }
+        while(digitalRead(s5)==0){
+          digitalWrite(MEF,1);
+          digitalWrite(MET,0);
+          digitalWrite(MDF,0);
+          digitalWrite(MDT,1);
+          analogWrite(vel_D,60);
+          analogWrite(vel_E,60);
+        }
+        delay(20);
+        digitalWrite(MEF,0);
+        digitalWrite(MET,0);
+        digitalWrite(MDF,0);
+        digitalWrite(MDT,0);
+        analogWrite(vel_D,80);
+        analogWrite(vel_E,80);
+        delay(300);
+        estado=SEGUIR_LINHA; 
+      }
+      //igual ao 11 mas sem caixa
+      if(n_ent==17 || n_ent==35 || n_ent==53){
+        //tem de virar é esquerda
+        digitalWrite(MEF,1);
+        digitalWrite(MET,1);
+        digitalWrite(MDF,1);
+        digitalWrite(MDT,1);
+        analogWrite(vel_D,255);
+        analogWrite(vel_E,255);
+        delay(300);
+        while(digitalRead(s3)==0){
+          digitalWrite(MEF,1);
+          digitalWrite(MET,0);
+          digitalWrite(MDF,1);
+          digitalWrite(MDT,0);
+          analogWrite(vel_D,60);
+          analogWrite(vel_E,60);
+        }
+        delay(130);
+        while(digitalRead(s3)==1){
+          digitalWrite(MEF,0);
+          digitalWrite(MET,1);
+          digitalWrite(MDF,1);
+          digitalWrite(MDT,0);
+          analogWrite(vel_D,60);
+          analogWrite(vel_E,60);
+        }
+        while(digitalRead(s2)==0){
+          digitalWrite(MEF,0);
+          digitalWrite(MET,1);
+          digitalWrite(MDF,1);
+          digitalWrite(MDT,0);
+          analogWrite(vel_D,60);
+          analogWrite(vel_E,60);
+        }
+        delay(10);
+        digitalWrite(MEF,0);
+        digitalWrite(MET,0);
+        digitalWrite(MDF,0);
+        digitalWrite(MDT,0);
+        analogWrite(vel_D,80);
+        analogWrite(vel_E,80);
+        delay(300);
+        digitalWrite(MEF,1);
+        digitalWrite(MET,0);
+        digitalWrite(MDF,1);
+        digitalWrite(MDT,0);
+        analogWrite(vel_D,80);
+        analogWrite(vel_E,80);
+        delay(10);
+        estado=SEGUIR_LINHA;
+      }
+
+      if(n_ent==20 || n_ent==37 || n_ent==54){
+        digitalWrite(MEF,0);
+        digitalWrite(MET,0);
+        digitalWrite(MDF,0);
+        digitalWrite(MDT,0);
+        analogWrite(vel_D,80);
+        analogWrite(vel_E,80);
+        delay(200);
+        digitalWrite(MEF,1);
+        digitalWrite(MET,0);
+        digitalWrite(MDF,1);
+        digitalWrite(MDT,0);
+        analogWrite(vel_D,60);
+        analogWrite(vel_E,60);
+        delay(200);
+        while(digitalRead(s5)==1){
+          digitalWrite(MEF,1);
+          digitalWrite(MET,0);
+          digitalWrite(MDF,0);
+          digitalWrite(MDT,1);
+          analogWrite(vel_D,60);
+          analogWrite(vel_E,60);
+        }
+        while(digitalRead(s5)==0){
+          digitalWrite(MEF,1);
+          digitalWrite(MET,0);
+          digitalWrite(MDF,0);
+          digitalWrite(MDT,1);
+          analogWrite(vel_D,60);
+          analogWrite(vel_E,60);
+        }
+        delay(35);       
+        digitalWrite(MEF,0);
+        digitalWrite(MET,0);
+        digitalWrite(MDF,0);
+        digitalWrite(MDT,0);
+        analogWrite(vel_D,80);
+        analogWrite(vel_E,80);
+        delay(200);
+        aux=1;
+        //ja está na linha, vai em frente até encontrar a caixa -> codigo do n_ent==3
+        while(digitalRead(interruptor)==0){
+          //segue a linha (copiar a parte do código de seguir a linha)
+          while(aux==1){
+            //serve para ajustar depois de cada curva sem caixa
+            analogWrite(vel_D,70);
+            analogWrite(vel_E,70);
+            if(digitalRead(s4)==0){
+              digitalWrite(MEF,1);
+              digitalWrite(MDF,0);
+            }else{
+              if(digitalRead(s2)==0){
+                digitalWrite(MEF,0);
+                digitalWrite(MDF,1);
+              }else{
+                digitalWrite(MEF,1);
+                digitalWrite(MDF,1);
+                delay(80);
+                if(digitalRead(s2)==1 && digitalRead(s4)==1){
+                  aux=0;
+                }
+              }
+             }
+          }
+          if(digitalRead(s4)==1){
+            analogWrite(vel_E,0.19*255);
+            digitalWrite(MEF,HIGH);
+          }
+          if(digitalRead(s4)==0){
+            analogWrite(vel_E,0.25*255);
+            digitalWrite(MEF,HIGH);
+          }
+          if(digitalRead(s2)==1){
+            analogWrite(vel_D,0.19*255);
+            digitalWrite(MDF,HIGH);
+          }
+          if(digitalRead(s2)==0){
+            analogWrite(vel_D,0.25*255);
+            digitalWrite(MDF,HIGH);
+          }
+              
+        }
+        //interruptor ja está ligado, então liga a bobina
+        digitalWrite(bobina,HIGH);
+        
+        delay(1000);
+        
+                  
+          while(digitalRead(s3)==0 && digitalRead(s5)==1){
+            //anda para tráz até encontrar a linha 
+            digitalWrite(MEF,0);
+            digitalWrite(MET,1);
+            digitalWrite(MDF,0);
+            digitalWrite(MDT,1);
+            analogWrite(vel_D,70);
+            analogWrite(vel_E,70);
+          }
+
+          digitalWrite(MEF,1);
+          digitalWrite(MET,1);
+          digitalWrite(MDF,1);
+          digitalWrite(MDT,1);
+          analogWrite(vel_D,255);
+          analogWrite(vel_E,255);
+
+          delay(500);
+        
+          digitalWrite(MEF,1);
+          digitalWrite(MET,0);
+          digitalWrite(MDF,1);
+          digitalWrite(MDT,0);
+          analogWrite(vel_D,80);
+          analogWrite(vel_E,80);
+          delay(350);
+          //roda até ver branco 
+          while(digitalRead(s3)==0){
+            digitalWrite(MEF,1);
+            digitalWrite(MET,0);
+            digitalWrite(MDF,0);
+            digitalWrite(MDT,1);
+            analogWrite(vel_D,70);
+            analogWrite(vel_E,80);//VELOCIDADE INICIAL-70 ; velocidade teste 1-80
+          }
+          while(digitalRead(s3)==1){
+            digitalWrite(MEF,1);
+            digitalWrite(MET,0);
+            digitalWrite(MDF,0);
+            digitalWrite(MDT,1);
+            analogWrite(vel_D,75);
+            analogWrite(vel_E,80);//aqui tambem
+          }
+          delay(10);
+          digitalWrite(MEF,0);
+          digitalWrite(MET,0);
+          digitalWrite(MDF,0);
+          digitalWrite(MDT,0);
+          analogWrite(vel_D,255);
+          analogWrite(vel_E,255);
+          delay(300);
+          estado=SEGUIR_LINHA_CAIXA; 
+        
+      }
+      if(n_ent==63){
+        while(1){
+          digitalWrite(MEF,0);
+          digitalWrite(MET,0);
+          digitalWrite(MDF,0);
+          digitalWrite(MDT,0);
+          analogWrite(vel_D,70);
+          analogWrite(vel_E,80);
+        }
+      }
+      
+      break;
+  }
+}
+  
